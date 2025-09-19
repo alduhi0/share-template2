@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>مولّد قالب الصور 1080×1350 (مقفّل)</title>
+  <!-- Tailwind via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* سحب الصورة (التحريك) */
+    .dragging { cursor: grabbing; }
+    .draggable { cursor: grab; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800">
+  <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <h1 class="text-xl md:text-2xl font-bold">مولّد قالب الصور 1080×1350</h1>
+      <div class="text-xs md:text-sm text-slate-500">وضع القالب: <span id="modeLabel" class="font-semibold">—</span></div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- المعاينة -->
+    <section class="bg-white rounded-2xl shadow p-4 lg:p-6">
+      <h2 class="font-semibold mb-3">المعاينة</h2>
+      <div class="relative w-full max-w-[540px] mx-auto aspect-[1080/1350] bg-slate-100 rounded-xl overflow-hidden border border-slate-200">
+        <!-- لوح الرسم -->
+        <canvas id="canvas" class="absolute inset-0 w-full h-full"></canvas>
+        <!-- طبقة التفاعل لسحب الصورة -->
+        <div id="dragLayer" class="absolute inset-0 draggable" title="اسحب لتحريك الصورة"></div>
+      </div>
+      <div class="mt-4 flex flex-wrap items-center gap-3">
+        <button id="btnExport" class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:opacity-90 disabled:opacity-40">تنزيل الصورة JPG</button>
+        <span id="exportHint" class="text-xs text-slate-500">المقاس النهائي: 1080×1350</span>
+      </div>
+    </section>
+
+    <!-- لوحة التحكم -->
+    <section class="bg-white rounded-2xl shadow p-4 lg:p-6 space-y-6">
+      <div class="space-y-2">
+        <h2 class="font-semibold">صورة المستخدم</h2>
+        <input id="userFile" type="file" accept="image/*" class="block w-full text-sm" />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
+          <label class="text-sm">مقياس الصورة: <span id="scaleVal" class="font-semibold">100%</span></label>
+          <input id="scale" type="range" min="10" max="300" value="100" class="w-full" />
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
+          <label class="text-sm">تدوير: <span id="rotateVal" class="font-semibold">0°</span></label>
+          <input id="rotate" type="range" min="-45" max="45" value="0" class="w-full" />
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button id="btnFitCover" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200">ملء القالب</button>
+          <button id="btnCenter" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200">توسيط</button>
+          <button id="btnReset" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200">إعادة ضبط</button>
+        </div>
+      </div>
+
+      <hr class="border-slate-200" />
+
+      <div id="templateSection" class="space-y-3">
+        <h2 class="font-semibold">القالب (PNG بخلفية شفافة)</h2>
+        <div id="unlockedControls" class="space-y-3">
+          <p class="text-sm text-slate-600">ارفع القالب للمراجعة فقط، ولن يُستخدم في رابط المشاركة المقيّد. لاستخراج رابط مشاركة مقفّل، الصق رابط القالب المستضاف (مثلاً على GitHub) في الحقل أدناه.</p>
+          <input id="templateFile" type="file" accept="image/png" class="block w-full text-sm" />
+          <label class="block text-sm">رابط القالب المستضاف (PNG):</label>
+          <input id="templateUrlInput" type="url" placeholder="https://raw.githubusercontent.com/…/template.png" class="w-full px-3 py-2 rounded-lg border border-slate-300" />
+          <div class="flex flex-col gap-2">
+            <button id="btnApplyTemplateUrl" class="px-3 py-2 rounded-lg bg-slate-900 text-white hover:opacity-90">تطبيق هذا القالب في المعاينة</button>
+            <button id="btnMakeShare" class="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:opacity-90">إنشاء رابط مشاركة (مقفل)</button>
+            <input id="shareLink" readonly class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs" placeholder="سيظهر رابط المشاركة هنا" />
+          </div>
+        </div>
+        <div id="lockedNote" class="hidden bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3 text-sm">
+          هذا الرابط يعمل بوضع مقفّل. لا يمكن تغيير القالب هنا. يمكنك فقط إضافة صورتك وتحريكها ثم التنزيل.
+        </div>
+      </div>
+
+      <hr class="border-slate-200" />
+
+      <div class="space-y-2">
+        <h2 class="font-semibold">تلميحات</h2>
+        <ul class="list-disc pr-5 text-sm text-slate-600 space-y-1">
+          <li>اسحب الصورة داخل المعاينة للتحريك. استخدم شريط المقياس للتكبير/التصغير.</li>
+          <li>يُنصح أن يكون القالب PNG بخلفية شفافة ليظهر فوق صورة المستخدم.</li>
+          <li>الحجم الفعلي للتصدير دائمًا 1080×1350 بصيغة JPG.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="max-w-6xl mx-auto px-4 py-8 text-center text-[10px] text-slate-400">
+    اوكي اوكي
+  </footer>
+
+  <script>
+    // ====== حالة التطبيق العامة ======
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    // ثبّت المقاس المطلوب
+    const EXPORT_W = 1080;
+    const EXPORT_H = 1350;
+
+    // اجعل عنصر <canvas> يملأ الحاوية مع الحفاظ على الدقة عبر devicePixelRatio
+    function resizeCanvasToDisplaySize() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = EXPORT_W * dpr * (rect.width / rect.height) / (EXPORT_W / EXPORT_H);
+      // نحافظ على نسبة 1080×1350 دائمًا عبر CSS aspect-ratio، لذا نضبط العرض والارتفاع الفعليين بدقة
+      canvas.width = Math.round(EXPORT_W * dpr);
+      canvas.height = Math.round(EXPORT_H * dpr);
+    }
+
+    // صور
+    let userImage = null;      // Image()
+    let templateImage = null;  // Image()
+
+    // تحويلات صورة المستخدم
+    const state = {
+      scale: 1,
+      rotation: 0, // درجات
+      offsetX: 0,
+      offsetY: 0,
+    };
+
+    // عناصر UI
+    const scaleInput = document.getElementById('scale');
+    const rotateInput = document.getElementById('rotate');
+    const scaleVal = document.getElementById('scaleVal');
+    const rotateVal = document.getElementById('rotateVal');
+    const userFile = document.getElementById('userFile');
+    const templateFile = document.getElementById('templateFile');
+    const templateUrlInput = document.getElementById('templateUrlInput');
+    const btnApplyTemplateUrl = document.getElementById('btnApplyTemplateUrl');
+    const btnMakeShare = document.getElementById('btnMakeShare');
+    const shareLink = document.getElementById('shareLink');
+    const btnExport = document.getElementById('btnExport');
+    const modeLabel = document.getElementById('modeLabel');
+    const lockedNote = document.getElementById('lockedNote');
+    const unlockedControls = document.getElementById('unlockedControls');
+
+    // سحب/تحريك
+    const dragLayer = document.getElementById('dragLayer');
+    let isDragging = false;
+    let dragStart = { x: 0, y: 0 };
+    let originAtDragStart = { x: 0, y: 0 };
+
+    // ====== أدوات ======
+    function loadImageFromFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = reader.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function loadImageFromUrl(url) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('تعذّر تحميل القالب من الرابط. تأكد من أن الرابط مباشر للصورة ويسمح بالوصول الخارجي.'));
+        img.src = url;
+      });
+    }
+
+    function degreesToRadians(deg) { return deg * Math.PI / 180; }
+
+    function fitCover() {
+      if (!userImage) return;
+      // اجعل الصورة تغطي كامل مساحة اللوحة مع الحفاظ على النسبة
+      const sx = EXPORT_W / userImage.width;
+      const sy = EXPORT_H / userImage.height;
+      state.scale = Math.max(sx, sy);
+      state.offsetX = 0;
+      state.offsetY = 0;
+      scaleInput.value = Math.round(state.scale * 100);
+      scaleVal.textContent = Math.round(state.scale * 100) + '%';
+      render();
+    }
+
+    function centerImage() {
+      state.offsetX = 0;
+      state.offsetY = 0;
+      render();
+    }
+
+    function resetTransforms() {
+      state.scale = 1;
+      state.rotation = 0;
+      state.offsetX = 0;
+      state.offsetY = 0;
+      scaleInput.value = 100;
+      rotateInput.value = 0;
+      scaleVal.textContent = '100%';
+      rotateVal.textContent = '0°';
+      render();
+    }
+
+    function parseQuery() {
+      const qs = new URLSearchParams(location.search);
+      const locked = qs.get('locked') === '1';
+      const templateUrl = qs.get('template');
+      return { locked, templateUrl };
+    }
+
+    function updateModeUI(locked) {
+      modeLabel.textContent = locked ? 'مقفّل' : 'حر';
+      if (locked) {
+        unlockedControls.classList.add('hidden');
+        lockedNote.classList.remove('hidden');
+        templateFile.disabled = true;
+      } else {
+        unlockedControls.classList.remove('hidden');
+        lockedNote.classList.add('hidden');
+        templateFile.disabled = false;
+      }
+    }
+
+    // ====== الرسم ======
+    function render() {
+      resizeCanvasToDisplaySize();
+      const dpr = window.devicePixelRatio || 1;
+      ctx.setTransform(1, 0, 0, 1, 0, 0); // reset
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // خلفية بيضاء (ستظهر في JPG النهائية)
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // ارسم صورة المستخدم (إن وجدت)
+      if (userImage) {
+        ctx.save();
+        ctx.translate(canvas.width / 2 + state.offsetX * dpr, canvas.height / 2 + state.offsetY * dpr);
+        ctx.rotate(degreesToRadians(state.rotation));
+        const drawW = userImage.width * state.scale * dpr;
+        const drawH = userImage.height * state.scale * dpr;
+        ctx.drawImage(userImage, -drawW / 2, -drawH / 2, drawW, drawH);
+        ctx.restore();
+      }
+
+      // ارسم القالب فوق
+      if (templateImage) {
+        // مد الصورة بدقة اللوحة
+        ctx.drawImage(templateImage, 0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    // ====== أحداث التحكم ======
+    scaleInput.addEventListener('input', () => {
+      state.scale = parseInt(scaleInput.value, 10) / 100;
+      scaleVal.textContent = Math.round(state.scale * 100) + '%';
+      render();
+    });
+
+    rotateInput.addEventListener('input', () => {
+      state.rotation = parseInt(rotateInput.value, 10);
+      rotateVal.textContent = state.rotation + '°';
+      render();
+    });
+
+    userFile.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      userImage = await loadImageFromFile(file);
+      resetTransforms();
+      fitCover();
+    });
+
+    document.getElementById('btnFitCover').addEventListener('click', fitCover);
+    document.getElementById('btnCenter').addEventListener('click', centerImage);
+    document.getElementById('btnReset').addEventListener('click', resetTransforms);
+
+    templateFile.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        templateImage = await loadImageFromFile(file);
+        render();
+      } catch (err) {
+        alert('تعذّر تحميل القالب');
+      }
+    });
+
+    btnApplyTemplateUrl.addEventListener('click', async () => {
+      const url = templateUrlInput.value.trim();
+      if (!url) { alert('أدخل رابط القالب أولاً'); return; }
+      try {
+        templateImage = await loadImageFromUrl(url);
+        render();
+      } catch (err) { alert(err.message); }
+    });
+
+    btnMakeShare.addEventListener('click', () => {
+      const url = templateUrlInput.value.trim();
+      if (!url) { alert('أدخل رابط القالب المستضاف أولاً'); return; }
+      const base = location.origin + location.pathname;
+      const link = `${base}?locked=1&template=${encodeURIComponent(url)}`;
+      shareLink.value = link;
+      shareLink.select();
+      try { document.execCommand('copy'); } catch {}
+    });
+
+    btnExport.addEventListener('click', () => {
+      const dpr = window.devicePixelRatio || 1;
+      // نصدر دائمًا بالدقة الفعلية 1080×1350 حقيقية (بدون دبل الدقة)
+      const off = document.createElement('canvas');
+      off.width = EXPORT_W;
+      off.height = EXPORT_H;
+      const c = off.getContext('2d');
+      c.fillStyle = '#ffffff';
+      c.fillRect(0, 0, off.width, off.height);
+
+      if (userImage) {
+        c.save();
+        c.translate(off.width / 2 + state.offsetX, off.height / 2 + state.offsetY);
+        c.rotate(degreesToRadians(state.rotation));
+        const drawW = userImage.width * state.scale;
+        const drawH = userImage.height * state.scale;
+        c.drawImage(userImage, -drawW / 2, -drawH / 2, drawW, drawH);
+        c.restore();
+      }
+
+      if (templateImage) {
+        c.drawImage(templateImage, 0, 0, off.width, off.height);
+      }
+
+      // خروج JPG
+      const data = off.toDataURL('image/jpeg', 0.92);
+      const a = document.createElement('a');
+      a.href = data;
+      a.download = 'final-1080x1350.jpg';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+
+    // سحب/تحريك بالماوس واللمس
+    function onPointerDown(clientX, clientY) {
+      isDragging = true;
+      dragLayer.classList.add('dragging');
+      dragStart = { x: clientX, y: clientY };
+      originAtDragStart = { x: state.offsetX, y: state.offsetY };
+    }
+    function onPointerMove(clientX, clientY) {
+      if (!isDragging) return;
+      const dx = clientX - dragStart.x;
+      const dy = clientY - dragStart.y;
+      state.offsetX = originAtDragStart.x + dx;
+      state.offsetY = originAtDragStart.y + dy;
+      render();
+    }
+    function endDrag() {
+      isDragging = false;
+      dragLayer.classList.remove('dragging');
+    }
+
+    dragLayer.addEventListener('mousedown', (e) => onPointerDown(e.clientX, e.clientY));
+    window.addEventListener('mousemove', (e) => onPointerMove(e.clientX, e.clientY));
+    window.addEventListener('mouseup', endDrag);
+
+    dragLayer.addEventListener('touchstart', (e) => {
+      const t = e.touches[0];
+      onPointerDown(t.clientX, t.clientY);
+    }, { passive: true });
+    window.addEventListener('touchmove', (e) => {
+      const t = e.touches[0];
+      if (t) onPointerMove(t.clientX, t.clientY);
+    }, { passive: true });
+    window.addEventListener('touchend', endDrag);
+
+    // تكبير/تصغير بعجلة الماوس
+    dragLayer.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const factor = e.deltaY > 0 ? 0.95 : 1.05;
+      state.scale = Math.min(3, Math.max(0.1, state.scale * factor));
+      scaleInput.value = Math.round(state.scale * 100);
+      scaleVal.textContent = Math.round(state.scale * 100) + '%';
+      render();
+    }, { passive: false });
+
+    // إعداد مبدئي
+    window.addEventListener('resize', render);
+    resizeCanvasToDisplaySize();
+    render();
+
+    // وضع القفل من الرابط
+    (async function initFromQuery(){
+      const { locked, templateUrl } = parseQuery();
+      updateModeUI(locked);
+      if (templateUrl) {
+        try {
+          templateImage = await loadImageFromUrl(templateUrl);
+          if (!locked) templateUrlInput.value = templateUrl;
+        } catch (err) {
+          console.warn(err);
+        }
+      }
+      render();
+    })();
+  </script>
+</body>
+</html>
